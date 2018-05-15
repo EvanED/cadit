@@ -50,6 +50,8 @@ enum Keys {
     ARROW_DOWN,
     ARROW_RIGHT,
     INSERT,
+    HOME,
+    END,
 };
 
 struct Key
@@ -104,12 +106,16 @@ Key read()
         case 'B': return {ARROW_DOWN};
         case 'C': return {ARROW_RIGHT};
         case 'D': return {ARROW_LEFT};
-    }
-    assert(k.k == '2');
-    
-    k = read_byte();
-    switch(k.k) {
-        case '~': return {INSERT};
+
+        case 'F': return {END};
+        case 'H': return {HOME};
+
+        case '2':
+            k = read_byte();
+            switch(k.k) {
+                case '~': return {INSERT};
+            }
+            break;
     }
     assert(false);
     return k;
@@ -129,6 +135,13 @@ void put(char const (&str)[size])
         perror("write:");
 }
 
+void move_cursor_to_end_of_line()
+{
+    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
+    fflush(stdout);
+    g_cursor_column = g_document[g_cursor_line].size();
+}
+
 void move_cursor(Key k)
 {
     switch (k.k) {
@@ -136,22 +149,16 @@ void move_cursor(Key k)
             if (g_cursor_line >= 1) {
                 put("\033[1A");
                 g_cursor_line--;
-                if (g_cursor_column > (int)g_document[g_cursor_line].size()) {
-                    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
-                    fflush(stdout);
-                    g_cursor_column = g_document[g_cursor_line].size();
-                }
+                if (g_cursor_column > (int)g_document[g_cursor_line].size())
+                    move_cursor_to_end_of_line();
             }
             break;
         case ARROW_DOWN:
             if (g_cursor_line < g_max_line) {
                 put("\033[1B");
                 g_cursor_line++;
-                if (g_cursor_column > (int)g_document[g_cursor_line].size()) {
-                    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
-                    fflush(stdout);
-                    g_cursor_column = g_document[g_cursor_line].size();
-                }
+                if (g_cursor_column > (int)g_document[g_cursor_line].size())
+                    move_cursor_to_end_of_line();
             }
             break;
         case ARROW_RIGHT:
@@ -251,6 +258,11 @@ void write_status_bar()
 
 //////////////////////////////////////////
 
+constexpr int ctrl(char c)
+{
+    return c & 0x1F;
+}
+
 int main()
 {
     raw();
@@ -279,6 +291,16 @@ int main()
                     put("\r\n");
                     put("\033[1A");
                 }
+                break;
+
+            case HOME:
+            case ctrl('A'):
+                put("\r");
+                break;
+
+            case END:
+            case ctrl('E'):
+                move_cursor_to_end_of_line();
                 break;
 
             case ARROW_UP:
