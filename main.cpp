@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "tokenize.hpp"
+
 using boost::optional;
 using boost::none;
 using std::string;
@@ -293,7 +295,7 @@ void render_line()
 {
     string & s = g_document[g_cursor_line];
     fprintf(g_tty_file, "\r\033[0K");
-    fprintf(g_tty_file, "%s", s.c_str());
+    fprintf(g_tty_file, "%s", render_colors(s).c_str());
     fprintf(g_tty_file, "\r\033[%dC", g_cursor_column);
     fflush(g_tty_file);
 }

@@ -19,5 +19,6 @@ env.Program(
     "cadit",
     source=[
         "main.cpp",
+        "tokenize.cpp",
     ],
 )
