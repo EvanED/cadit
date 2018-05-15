@@ -54,6 +54,7 @@ void raw()
 ////////////////////////////
 
 enum Keys {
+    BACKSPACE = 0x7F,
     ARROW_UP = 1000,
     ARROW_LEFT,
     ARROW_DOWN,
@@ -61,6 +62,7 @@ enum Keys {
     INSERT,
     HOME,
     END,
+    DELETE,
 };
 
 struct Key
@@ -123,6 +125,13 @@ Key read()
             k = read_byte();
             switch(k.k) {
                 case '~': return {INSERT};
+            }
+            break;
+
+        case '3':
+            k = read_byte();
+            switch(k.k) {
+                case '~': return {DELETE};
             }
             break;
     }
@@ -280,6 +289,15 @@ void print_document()
     }
 }
 
+void render_line()
+{
+    string & s = g_document[g_cursor_line];
+    fprintf(g_tty_file, "\r\033[0K");
+    fprintf(g_tty_file, "%s", s.c_str());
+    fprintf(g_tty_file, "\r\033[%dC", g_cursor_column);
+    fflush(g_tty_file);
+}
+
 constexpr int ctrl(char c)
 {
     return c & 0x1F;
@@ -347,6 +365,21 @@ int main()
                 g_overwrite = !g_overwrite;
                 break;
 
+            case BACKSPACE:
+                if (g_cursor_column >= 1) {
+                    g_cursor_column--;
+                    g_document[g_cursor_line].erase(g_cursor_column, 1);
+                    render_line();
+                }
+                break;
+
+            case DELETE:
+                if (g_cursor_column < (int)g_document[g_cursor_line].size()) {
+                    g_document[g_cursor_line].erase(g_cursor_column, 1);
+                    render_line();
+                }
+                break;
+
             default: {
                 if (!iscntrl(k.k)) {
                     string & s = g_document[g_cursor_line];
@@ -360,10 +393,7 @@ int main()
                         s.insert(g_cursor_column, 1, k.k);
                     }
                     g_cursor_column++;
-
-                    fprintf(g_tty_file, "\r%s", s.c_str());
-                    fprintf(g_tty_file, "\r\033[%dC", g_cursor_column);
-                    fflush(g_tty_file);
+                    render_line();
                 }
             }
         }
