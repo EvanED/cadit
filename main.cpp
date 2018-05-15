@@ -23,7 +23,10 @@ termios g_orig_termios;
 
 void restore_termios_mode()
 {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_orig_termios); // TODO: ||die
+    static bool restored = false;
+    if (!restored)
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_orig_termios); // TODO: ||die
+    restored = true;
 }
 
 void raw()
@@ -258,6 +261,16 @@ void write_status_bar()
 
 //////////////////////////////////////////
 
+void print_document()
+{
+    if (g_cursor_line > 0)
+        printf("\r\033[%dA", g_cursor_line);
+    else
+        printf("\r");
+    for (auto const & line : g_document)
+        printf("%s\n", line.c_str());
+}
+
 constexpr int ctrl(char c)
 {
     return c & 0x1F;
@@ -335,5 +348,8 @@ int main()
             }
         }
     }
+
+    restore_termios_mode();
+    print_document();
     return 0;
 }
