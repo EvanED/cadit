@@ -1,4 +1,5 @@
 #include <string>
+#include <queue>
 #include <cassert>
 #include <unistd.h>
 #include <termios.h>
@@ -29,7 +30,7 @@ void raw()
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     //raw.c_cc[VMIN] = 0;
     //raw.c_cc[VTIME] = 1;
-    
+   
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); // TODO: ||die
 }
 
@@ -47,11 +48,19 @@ struct Key
     int k = 0;
 };
 
+std::queue<int> g_pending_bytes;
+
 Key read_byte()
 {
     Key k;
-    while (read(STDIN_FILENO, &k.k, 1) != 1)
-        ;
+    if (!g_pending_bytes.empty()) {
+        k.k = g_pending_bytes.front();
+        g_pending_bytes.pop();
+    }
+    else {
+        while (read(STDIN_FILENO, &k.k, 1) != 1)
+            ;
+    }
     return k;
 }
 
