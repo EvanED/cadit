@@ -326,7 +326,8 @@ int main()
         write_status_bar();
         Key k = read();
         switch (k.k) {
-            case 'q':
+            case ctrl('D'):
+            case ctrl('C'):
                 should_exit = true;
                 break;
 
