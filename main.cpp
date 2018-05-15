@@ -47,7 +47,7 @@ struct Key
     int k = 0;
 };
 
-Key read_single()
+Key read_byte()
 {
     Key k;
     while (read(STDIN_FILENO, &k.k, 1) != 1)
@@ -57,7 +57,7 @@ Key read_single()
 
 Key read()
 {
-    Key k = read_single();
+    Key k = read_byte();
 #if 0
     switch(k.k) {
         case ',': return {ARROW_UP};
@@ -69,13 +69,13 @@ Key read()
     if (k.k != '\x1B')
         return k;
 
-    k = read_single();
+    k = read_byte();
     if (k.k != '[') {
         assert(false);
         return k;
     }
 
-    k = read_single();
+    k = read_byte();
     switch(k.k) {
         case 'A': return {ARROW_UP};
         case 'B': return {ARROW_DOWN};
@@ -126,17 +126,17 @@ void write_status_bar()
 
     std::string pos_str;
 
-    Key k = read_single();
+    Key k = read_byte();
     assert(k.k == '\033');
-    k = read_single();
+    k = read_byte();
     assert(k.k == '[');
-    for (k = read_single(); k.k != ';'; k = read_single()) {
+    for (k = read_byte(); k.k != ';'; k = read_byte()) {
         pos_str.push_back(k.k);
         assert(pos_str.size() < 10);
     }
     int row = std::stoi(pos_str);
     pos_str.clear();
-    for (k = read_single(); k.k != 'R'; k = read_single()) {
+    for (k = read_byte(); k.k != 'R'; k = read_byte()) {
         pos_str.push_back(k.k);
         assert(pos_str.size() < 10);
     }
