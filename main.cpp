@@ -136,16 +136,36 @@ void move_cursor(Key k)
             if (g_cursor_line >= 1) {
                 put("\033[1A");
                 g_cursor_line--;
+                if (g_cursor_column > (int)g_document[g_cursor_line].size()) {
+                    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
+                    fflush(stdout);
+                    g_cursor_column = g_document[g_cursor_line].size();
+                }
             }
             break;
         case ARROW_DOWN:
             if (g_cursor_line < g_max_line) {
                 put("\033[1B");
                 g_cursor_line++;
+                if (g_cursor_column > (int)g_document[g_cursor_line].size()) {
+                    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
+                    fflush(stdout);
+                    g_cursor_column = g_document[g_cursor_line].size();
+                }
             }
             break;
-        case ARROW_RIGHT: put("\033[1C"); g_cursor_column++; break;
-        case ARROW_LEFT:  put("\033[1D"); g_cursor_column--; break;
+        case ARROW_RIGHT:
+            if (g_cursor_column < (int)g_document[g_cursor_line].size()) {
+                put("\033[1C");
+                g_cursor_column++;
+            }
+            break;
+        case ARROW_LEFT:
+            if (g_cursor_column > 0) {
+                put("\033[1D");
+                g_cursor_column--;
+            }
+            break;
     };
 }
 
