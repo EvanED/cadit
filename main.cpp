@@ -6,6 +6,9 @@
 #include <termios.h>
 #include <boost/optional.hpp>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using boost::optional;
 using boost::none;
@@ -17,7 +20,10 @@ using std::vector;
 int g_cursor_line, g_cursor_column;
 int g_max_line;
 bool g_overwrite;
-vector<string> g_document = {""};    
+vector<string> g_document = {""};
+
+int g_tty_fd;
+FILE* g_tty_file;
 
 termios g_orig_termios;
 
@@ -25,13 +31,13 @@ void restore_termios_mode()
 {
     static bool restored = false;
     if (!restored)
-        tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_orig_termios); // TODO: ||die
+        tcsetattr(g_tty_fd, TCSAFLUSH, &g_orig_termios); // TODO: ||die
     restored = true;
 }
 
 void raw()
 {
-    tcgetattr(STDIN_FILENO, &g_orig_termios); // TODO: ||die
+    tcgetattr(g_tty_fd, &g_orig_termios); // TODO: ||die
     atexit(restore_termios_mode);
 
     termios raw = g_orig_termios;
@@ -42,7 +48,7 @@ void raw()
     //raw.c_cc[VMIN] = 0;
     //raw.c_cc[VTIME] = 1;
    
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw); // TODO: ||die
+    tcsetattr(g_tty_fd, TCSAFLUSH, &raw); // TODO: ||die
 }
 
 ////////////////////////////
@@ -77,7 +83,7 @@ Key read_byte(AllowPending ap = AllowPending::Yes)
         g_pending_bytes.pop();
     }
     else {
-        while (read(STDIN_FILENO, &k.k, 1) != 1)
+        while (read(g_tty_fd, &k.k, 1) != 1)
             ;
     }
     return k;
@@ -128,20 +134,20 @@ Key read()
 
 void put(char c)
 {
-    write(STDOUT_FILENO, &c, 1);
+    write(g_tty_fd, &c, 1);
 }
 
 template<size_t size>
 void put(char const (&str)[size])
 {
-    if (write(STDOUT_FILENO, str, size - 1) != size - 1)
+    if (write(g_tty_fd, str, size - 1) != size - 1)
         perror("write:");
 }
 
 void move_cursor_to_end_of_line()
 {
-    printf("\r\033[%dC", (int)g_document[g_cursor_line].size());
-    fflush(stdout);
+    fprintf(g_tty_file, "\r\033[%dC", (int)g_document[g_cursor_line].size());
+    fflush(g_tty_file);
     g_cursor_column = g_document[g_cursor_line].size();
 }
 
@@ -185,7 +191,7 @@ void move_cursor(Key k)
 
 winsize get_window_size() {
     winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+    if (ioctl(g_tty_fd, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         assert(false);
     }
     return ws;
@@ -248,15 +254,15 @@ void write_status_bar()
     int col = std::stoi(col_str);
 
     winsize size = get_window_size();
-    printf("\033[%d;%dH", size.ws_row, 0);
-    printf("\033[0K");
-    printf("\033[7m");
-    printf("%d:%d", g_cursor_line, g_cursor_column);
+    fprintf(g_tty_file, "\033[%d;%dH", size.ws_row, 0);
+    fprintf(g_tty_file, "\033[0K");
+    fprintf(g_tty_file, "\033[7m");
+    fprintf(g_tty_file, "%d:%d", g_cursor_line, g_cursor_column);
     if (g_overwrite)
-        printf(" [overwrite]");
-    printf("\033[m");
-    printf("\033[%d;%dH", row, col);
-    fflush(stdout);
+        fprintf(g_tty_file, " [overwrite]");
+    fprintf(g_tty_file, "\033[m");
+    fprintf(g_tty_file, "\033[%d;%dH", row, col);
+    fflush(g_tty_file);
 }
 
 //////////////////////////////////////////
@@ -264,11 +270,14 @@ void write_status_bar()
 void print_document()
 {
     if (g_cursor_line > 0)
-        printf("\r\033[%dA", g_cursor_line);
+        fprintf(g_tty_file, "\r\033[%dA", g_cursor_line);
     else
-        printf("\r");
-    for (auto const & line : g_document)
-        printf("%s\n", line.c_str());
+        fprintf(g_tty_file, "\r");
+    for (auto const & line : g_document) {
+        fprintf(g_tty_file, "%s\n", line.c_str());
+        if (!isatty(STDOUT_FILENO))
+            printf("%s\n", line.c_str());
+    }
 }
 
 constexpr int ctrl(char c)
@@ -278,6 +287,17 @@ constexpr int ctrl(char c)
 
 int main()
 {
+    g_tty_fd = open("/dev/tty", O_RDWR | O_NOCTTY);
+    if (g_tty_fd == -1) {
+        perror("open");
+        exit(1);
+    }
+    g_tty_file = fdopen(g_tty_fd, "w+");
+    if (g_tty_file == NULL) {
+        perror("fdopen");
+        exit(1);
+    }
+    
     raw();
    
     bool should_exit = false;
@@ -341,9 +361,9 @@ int main()
                     }
                     g_cursor_column++;
 
-                    printf("\r%s", s.c_str());
-                    printf("\r\033[%dC", g_cursor_column);
-                    fflush(stdout);
+                    fprintf(g_tty_file, "\r%s", s.c_str());
+                    fprintf(g_tty_file, "\r\033[%dC", g_cursor_column);
+                    fflush(g_tty_file);
                 }
             }
         }
