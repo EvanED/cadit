@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #include <queue>
 #include <cassert>
 #include <unistd.h>
@@ -8,10 +9,15 @@
 
 using boost::optional;
 using boost::none;
+using std::string;
+using std::vector;
 
 ////////////////////////////
 
 int g_cursor_line, g_cursor_column;
+int g_max_line;
+bool g_overwrite;
+vector<string> g_document = {""};    
 
 termios g_orig_termios;
 
@@ -43,6 +49,7 @@ enum Keys {
     ARROW_LEFT,
     ARROW_DOWN,
     ARROW_RIGHT,
+    INSERT,
 };
 
 struct Key
@@ -98,6 +105,12 @@ Key read()
         case 'C': return {ARROW_RIGHT};
         case 'D': return {ARROW_LEFT};
     }
+    assert(k.k == '2');
+    
+    k = read_byte();
+    switch(k.k) {
+        case '~': return {INSERT};
+    }
     assert(false);
     return k;
 }
@@ -119,8 +132,18 @@ void put(char const (&str)[size])
 void move_cursor(Key k)
 {
     switch (k.k) {
-        case ARROW_UP:    put("\033[1A"); g_cursor_line--; break;
-        case ARROW_DOWN:  put("\033[1B"); g_cursor_line++; break;
+        case ARROW_UP:
+            if (g_cursor_line >= 1) {
+                put("\033[1A");
+                g_cursor_line--;
+            }
+            break;
+        case ARROW_DOWN:
+            if (g_cursor_line < g_max_line) {
+                put("\033[1B");
+                g_cursor_line++;
+            }
+            break;
         case ARROW_RIGHT: put("\033[1C"); g_cursor_column++; break;
         case ARROW_LEFT:  put("\033[1D"); g_cursor_column--; break;
     };
@@ -199,6 +222,8 @@ void write_status_bar()
     printf("\033[0K");
     printf("\033[7m");
     printf("%d:%d", g_cursor_line, g_cursor_column);
+    if (g_overwrite)
+        printf(" [overwrite]");
     printf("\033[m");
     printf("\033[%d;%dH", row, col);
     fflush(stdout);
@@ -211,7 +236,6 @@ int main()
     raw();
    
     bool should_exit = false;
-    std::string document;
 
     put("\n\033[A");
    
@@ -223,6 +247,20 @@ int main()
                 should_exit = true;
                 break;
 
+            case '\r':
+            case '\n':
+                put("\r\n");
+                g_cursor_line++;
+                g_cursor_column = 0;
+                if (g_cursor_line > g_max_line) {
+                    g_document.emplace_back();
+                    g_max_line = g_cursor_line;
+                    put("\033[0K");
+                    put("\r\n");
+                    put("\033[1A");
+                }
+                break;
+
             case ARROW_UP:
             case ARROW_DOWN:
             case ARROW_LEFT:
@@ -230,21 +268,30 @@ int main()
                 move_cursor(k);
                 break;
 
+            case INSERT:
+                g_overwrite = !g_overwrite;
+                break;
+
             default: {
                 if (!iscntrl(k.k)) {
-                    put(k.k);
-                    document.push_back(k.k);
-                }
+                    string & s = g_document[g_cursor_line];
+                    if (g_cursor_column >= (int)s.size()) {
+                        s.push_back(k.k);
+                    }
+                    else if (g_overwrite) {
+                        s[g_cursor_column] = k.k;
+                    }
+                    else {
+                        s.insert(g_cursor_column, 1, k.k);
+                    }
+                    g_cursor_column++;
 
-                if (k.k == '\r' || k.k == '\n') {
-                    put("\r\n");
-                    document += "\r\n";
+                    printf("\r%s", s.c_str());
+                    printf("\r\033[%dC", g_cursor_column);
+                    fflush(stdout);
                 }
             }
         }
     }
-
-    //printf("\033[%dA\r", n_lines);
-    //printf("%s", document.c_str());
     return 0;
 }
