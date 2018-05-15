@@ -285,7 +285,7 @@ void print_document()
     else
         fprintf(g_tty_file, "\r");
     for (auto const & line : g_document) {
-        fprintf(g_tty_file, "%s\n", line.c_str());
+        fprintf(g_tty_file, "%s\n", render_colors(line).c_str());
         if (!isatty(STDOUT_FILENO))
             printf("%s\n", line.c_str());
     }
