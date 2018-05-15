@@ -11,6 +11,8 @@ using boost::none;
 
 ////////////////////////////
 
+int g_cursor_line, g_cursor_column;
+
 termios g_orig_termios;
 
 void restore_termios_mode()
@@ -117,12 +119,14 @@ void put(char const (&str)[size])
 void move_cursor(Key k)
 {
     switch (k.k) {
-        case ARROW_UP:    put("\033[1A"); break;
-        case ARROW_DOWN:  put("\033[1B"); break;
-        case ARROW_RIGHT: put("\033[1C"); break;
-        case ARROW_LEFT:  put("\033[1D"); break;
+        case ARROW_UP:    put("\033[1A"); g_cursor_line--; break;
+        case ARROW_DOWN:  put("\033[1B"); g_cursor_line++; break;
+        case ARROW_RIGHT: put("\033[1C"); g_cursor_column++; break;
+        case ARROW_LEFT:  put("\033[1D"); g_cursor_column--; break;
     };
 }
+
+//////////////////////////////////////////
 
 //////////////////////////////////////////
 
@@ -192,8 +196,9 @@ void write_status_bar()
 
     winsize size = get_window_size();
     printf("\033[%d;%dH", size.ws_row, 0);
+    printf("\033[0K");
     printf("\033[7m");
-    printf("%d:%d", row, col);
+    printf("%d:%d", g_cursor_line, g_cursor_column);
     printf("\033[m");
     printf("\033[%d;%dH", row, col);
     fflush(stdout);
