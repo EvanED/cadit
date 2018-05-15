@@ -50,10 +50,15 @@ struct Key
 
 std::queue<int> g_pending_bytes;
 
-Key read_byte()
+enum class AllowPending {
+    Yes,
+    No,
+};
+
+Key read_byte(AllowPending ap = AllowPending::Yes)
 {
     Key k;
-    if (!g_pending_bytes.empty()) {
+    if (!g_pending_bytes.empty() && ap == AllowPending::Yes) {
         k.k = g_pending_bytes.front();
         g_pending_bytes.pop();
     }
@@ -133,23 +138,57 @@ void write_status_bar()
 {
     put("\033[6n");
 
-    std::string pos_str;
+    std::string row_str, col_str;
 
-    Key k = read_byte();
-    assert(k.k == '\033');
-    k = read_byte();
-    assert(k.k == '[');
-    for (k = read_byte(); k.k != ';'; k = read_byte()) {
-        pos_str.push_back(k.k);
-        assert(pos_str.size() < 10);
+    Key k;
+ expect_esc:
+    row_str.clear();
+    col_str.clear();
+    for (k = read_byte(AllowPending::No); k.k != '\033'; k = read_byte(AllowPending::No))
+        g_pending_bytes.push(k.k);
+
+    k = read_byte(AllowPending::No);
+    if (k.k != '[') {
+        g_pending_bytes.push('\033');
+        g_pending_bytes.push(k.k);
+        goto expect_esc;
     }
-    int row = std::stoi(pos_str);
-    pos_str.clear();
-    for (k = read_byte(); k.k != 'R'; k = read_byte()) {
-        pos_str.push_back(k.k);
-        assert(pos_str.size() < 10);
+
+    for (k = read_byte(AllowPending::No); std::isdigit(k.k); k = read_byte(AllowPending::No)) {
+        assert(row_str.size() < 10);
+        row_str.push_back(k.k);
     }
-    int col = std::stoi(pos_str);
+
+    if (k.k != ';') {
+        g_pending_bytes.push('\033');
+        g_pending_bytes.push('[');
+        for (char c : row_str)
+            g_pending_bytes.push(c);
+        g_pending_bytes.push(k.k);
+        goto expect_esc;
+    }
+    
+    for (k = read_byte(AllowPending::No); std::isdigit(k.k); k = read_byte(AllowPending::No)) {
+        assert(col_str.size() < 10);
+        col_str.push_back(k.k);
+    }
+    
+    if (k.k != 'R') {
+        g_pending_bytes.push('\033');
+        g_pending_bytes.push('[');
+        for (char c : row_str)
+            g_pending_bytes.push(c);
+        g_pending_bytes.push(';');
+        for (char c : col_str)
+            g_pending_bytes.push(c);
+        g_pending_bytes.push(k.k);
+        goto expect_esc;
+    }
+
+    //////////////////
+
+    int row = std::stoi(row_str);
+    int col = std::stoi(col_str);
 
     winsize size = get_window_size();
     printf("\033[%d;%dH", size.ws_row, 0);
@@ -172,7 +211,7 @@ int main()
     put("\n\033[A");
    
     while (!should_exit) {
-        //write_status_bar();
+        write_status_bar();
         Key k = read();
         switch (k.k) {
             case 'q':
