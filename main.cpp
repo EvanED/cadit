@@ -185,21 +185,8 @@ constexpr int ctrl(char c)
     return c & 0x1F;
 }
 
-int main()
+void event_loop()
 {
-    g_tty_fd = open("/dev/tty", O_RDWR | O_NOCTTY);
-    if (g_tty_fd == -1) {
-        perror("open");
-        exit(1);
-    }
-    g_tty_file = fdopen(g_tty_fd, "w+");
-    if (g_tty_file == NULL) {
-        perror("fdopen");
-        exit(1);
-    }
-    
-    raw();
-   
     bool should_exit = false;
 
     put("\n\033[A");
@@ -256,6 +243,24 @@ int main()
             }
         }
     }
+}
+
+int main()
+{
+    g_tty_fd = open("/dev/tty", O_RDWR | O_NOCTTY);
+    if (g_tty_fd == -1) {
+        perror("open");
+        exit(1);
+    }
+    g_tty_file = fdopen(g_tty_fd, "w+");
+    if (g_tty_file == NULL) {
+        perror("fdopen");
+        exit(1);
+    }
+
+    raw();
+
+    event_loop();
 
     restore_termios_mode();
     g_document.render();
