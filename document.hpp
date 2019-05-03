@@ -4,6 +4,7 @@
 #include <string>
 
 #include "output-utilities.hpp"
+#include "tokenize.hpp"
 
 struct Document
 {
@@ -66,5 +67,31 @@ struct Document
             put("\033[1D");
             cursor_column--;
         }
+    }
+
+    // LEAVES CURSOR AT END OF DISPLAY
+    //
+    // ONLY USE AT PROGRAM EXIT
+    void render() const
+    {
+        if (cursor_line > 0)
+            fprintf(g_tty_file, "\r\033[%dA", cursor_line);
+        else
+            fprintf(g_tty_file, "\r");
+
+        for (auto const & line : contents) {
+            fprintf(g_tty_file, "%s\n", render_colors(line).c_str());
+            if (!isatty(STDOUT_FILENO))
+                printf("%s\n", line.c_str());
+        }
+    }
+
+    void render_current_line() const
+    {
+        const std::string & s = contents[cursor_line];
+        fprintf(g_tty_file, "\r\033[0K"); // move to start and clear line
+        fprintf(g_tty_file, "%s", render_colors(s).c_str());
+        fprintf(g_tty_file, "\r\033[%dC", cursor_column);
+        fflush(g_tty_file);
     }
 };

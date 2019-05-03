@@ -261,24 +261,12 @@ void write_status_bar()
 
 void print_document()
 {
-    if (g_document.cursor_line > 0)
-        fprintf(g_tty_file, "\r\033[%dA", g_document.cursor_line);
-    else
-        fprintf(g_tty_file, "\r");
-    for (auto const & line : g_document.contents) {
-        fprintf(g_tty_file, "%s\n", render_colors(line).c_str());
-        if (!isatty(STDOUT_FILENO))
-            printf("%s\n", line.c_str());
-    }
+    g_document.render();
 }
 
 void render_line()
 {
-    string & s = g_document.contents[g_document.cursor_line];
-    fprintf(g_tty_file, "\r\033[0K");
-    fprintf(g_tty_file, "%s", render_colors(s).c_str());
-    fprintf(g_tty_file, "\r\033[%dC", g_document.cursor_column);
-    fflush(g_tty_file);
+    g_document.render_current_line();
 }
 
 constexpr int ctrl(char c)
