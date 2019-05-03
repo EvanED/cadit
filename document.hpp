@@ -18,11 +18,13 @@ struct Document
             cursor_end();
     }
 
-    int current_line_size()
+    int current_line_size() const
     {
         // TODO: asserting_cast
         return (int)contents[cursor_line].size();
     }
+
+    //////
 
     void cursor_end()
     {
