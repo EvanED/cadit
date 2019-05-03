@@ -78,10 +78,6 @@ enum Keys {
     DELETE,
 };
 
-struct Key
-{
-    int k = 0;
-};
 
 std::queue<int> g_pending_bytes;
 
@@ -304,16 +300,7 @@ int main()
 
             case '\r':
             case '\n':
-                put("\r\n");
-                g_document.cursor_line++;
-                g_document.cursor_column = 0;
-                if (g_document.cursor_line > g_document.max_line) {
-                    g_document.contents.emplace_back();
-                    g_document.max_line = g_document.cursor_line;
-                    put("\033[0K");
-                    put("\r\n");
-                    put("\033[1A");
-                }
+                g_document.insert_newline();
                 break;
 
             case HOME:
@@ -323,7 +310,7 @@ int main()
 
             case END:
             case ctrl('E'):
-                move_cursor_to_end_of_line();
+                g_document.cursor_end();
                 break;
 
             case ARROW_UP:
@@ -338,34 +325,16 @@ int main()
                 break;
 
             case BACKSPACE:
-                if (g_document.cursor_column >= 1) {
-                    g_document.cursor_column--;
-                    g_document.contents[g_document.cursor_line].erase(g_document.cursor_column, 1);
-                    render_line();
-                }
+                g_document.insert_backspace();
                 break;
 
             case DELETE:
-                if (g_document.cursor_column < (int)g_document.contents[g_document.cursor_line].size()) {
-                    g_document.contents[g_document.cursor_line].erase(g_document.cursor_column, 1);
-                    render_line();
-                }
+                g_document.insert_delete();
                 break;
 
             default: {
                 if (!iscntrl(k.k)) {
-                    string & s = g_document.contents[g_document.cursor_line];
-                    if (g_document.cursor_column >= (int)s.size()) {
-                        s.push_back(k.k);
-                    }
-                    else if (g_document.overwrite) {
-                        s[g_document.cursor_column] = k.k;
-                    }
-                    else {
-                        s.insert(g_document.cursor_column, 1, k.k);
-                    }
-                    g_document.cursor_column++;
-                    render_line();
+                    g_document.insert_key(k);
                 }
             }
         }

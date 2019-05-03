@@ -94,4 +94,53 @@ struct Document
         fprintf(g_tty_file, "\r\033[%dC", cursor_column);
         fflush(g_tty_file);
     }
+
+    /////
+
+    void insert_newline()
+    {
+        put("\r\n");
+        cursor_line++;
+        cursor_column = 0;
+        if (cursor_line > max_line) {
+            contents.emplace_back();
+            max_line = cursor_line;
+            put("\033[0K");
+            put("\r\n");
+            put("\033[1A");
+        }
+    }
+
+    void insert_backspace()
+    {
+        if (cursor_column >= 1) {
+            cursor_column--;
+            contents[cursor_line].erase(cursor_column, 1);
+            render_current_line();
+        }
+    }
+
+    void insert_delete()
+    {
+        if (cursor_column < (int)contents[cursor_line].size()) {
+            contents[cursor_line].erase(cursor_column, 1);
+            render_current_line();
+        }
+    }
+
+    void insert_key(Key k)
+    {
+        std::string & s = contents[cursor_line];
+        if (cursor_column >= (int)s.size()) {
+            s.push_back(k.k);
+        }
+        else if (overwrite) {
+            s[cursor_column] = k.k;
+        }
+        else {
+            s.insert(cursor_column, 1, k.k);
+        }
+        cursor_column++;
+        render_current_line();
+    }
 };

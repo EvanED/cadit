@@ -16,3 +16,8 @@ void put(char const (&str)[size])
     if (write(g_tty_fd, str, size - 1) != size - 1)
         perror("write:");
 }
+
+struct Key
+{
+    int k = 0;
+};
