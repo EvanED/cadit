@@ -79,24 +79,11 @@ enum Keys {
 };
 
 
-std::queue<int> g_pending_bytes;
-
-enum class AllowPending {
-    Yes,
-    No,
-};
-
-Key read_byte(AllowPending ap = AllowPending::Yes)
+Key read_byte()
 {
     Key k;
-    if (!g_pending_bytes.empty() && ap == AllowPending::Yes) {
-        k.k = g_pending_bytes.front();
-        g_pending_bytes.pop();
-    }
-    else {
-        while (read(g_tty_fd, &k.k, 1) != 1)
-            ;
-    }
+    while (read(g_tty_fd, &k.k, 1) != 1)
+        ;
     return k;
 }
 
