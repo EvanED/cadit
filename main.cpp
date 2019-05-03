@@ -24,6 +24,7 @@
 #include <fcntl.h>
 
 #include "tokenize.hpp"
+#include "document.hpp"
 
 using boost::optional;
 using boost::none;
@@ -32,10 +33,7 @@ using std::vector;
 
 ////////////////////////////
 
-int g_cursor_line, g_cursor_column;
-int g_max_line;
-bool g_overwrite;
-vector<string> g_document = {""};
+Document g_document;
 
 int g_tty_fd;
 FILE* g_tty_file;
@@ -170,40 +168,40 @@ void put(char const (&str)[size])
 
 void move_cursor_to_end_of_line()
 {
-    fprintf(g_tty_file, "\r\033[%dC", (int)g_document[g_cursor_line].size());
+    fprintf(g_tty_file, "\r\033[%dC", (int)g_document.contents[g_document.cursor_line].size());
     fflush(g_tty_file);
-    g_cursor_column = g_document[g_cursor_line].size();
+    g_document.cursor_column = g_document.contents[g_document.cursor_line].size();
 }
 
 void move_cursor(Key k)
 {
     switch (k.k) {
         case ARROW_UP:
-            if (g_cursor_line >= 1) {
+            if (g_document.cursor_line >= 1) {
                 put("\033[1A");
-                g_cursor_line--;
-                if (g_cursor_column > (int)g_document[g_cursor_line].size())
+                g_document.cursor_line--;
+                if (g_document.cursor_column > (int)g_document.contents[g_document.cursor_line].size())
                     move_cursor_to_end_of_line();
             }
             break;
         case ARROW_DOWN:
-            if (g_cursor_line < g_max_line) {
+            if (g_document.cursor_line < g_document.max_line) {
                 put("\033[1B");
-                g_cursor_line++;
-                if (g_cursor_column > (int)g_document[g_cursor_line].size())
+                g_document.cursor_line++;
+                if (g_document.cursor_column > (int)g_document.contents[g_document.cursor_line].size())
                     move_cursor_to_end_of_line();
             }
             break;
         case ARROW_RIGHT:
-            if (g_cursor_column < (int)g_document[g_cursor_line].size()) {
+            if (g_document.cursor_column < (int)g_document.contents[g_document.cursor_line].size()) {
                 put("\033[1C");
-                g_cursor_column++;
+                g_document.cursor_column++;
             }
             break;
         case ARROW_LEFT:
-            if (g_cursor_column > 0) {
+            if (g_document.cursor_column > 0) {
                 put("\033[1D");
-                g_cursor_column--;
+                g_document.cursor_column--;
             }
             break;
     };
@@ -281,8 +279,8 @@ void write_status_bar()
     fprintf(g_tty_file, "\033[%d;%dH", size.ws_row, 0);
     fprintf(g_tty_file, "\033[0K");
     fprintf(g_tty_file, "\033[7m");
-    fprintf(g_tty_file, "%d:%d", g_cursor_line, g_cursor_column);
-    if (g_overwrite)
+    fprintf(g_tty_file, "%d:%d", g_document.cursor_line, g_document.cursor_column);
+    if (g_document.overwrite)
         fprintf(g_tty_file, " [overwrite]");
     fprintf(g_tty_file, "\033[m");
     fprintf(g_tty_file, "\033[%d;%dH", row, col);
@@ -293,11 +291,11 @@ void write_status_bar()
 
 void print_document()
 {
-    if (g_cursor_line > 0)
-        fprintf(g_tty_file, "\r\033[%dA", g_cursor_line);
+    if (g_document.cursor_line > 0)
+        fprintf(g_tty_file, "\r\033[%dA", g_document.cursor_line);
     else
         fprintf(g_tty_file, "\r");
-    for (auto const & line : g_document) {
+    for (auto const & line : g_document.contents) {
         fprintf(g_tty_file, "%s\n", render_colors(line).c_str());
         if (!isatty(STDOUT_FILENO))
             printf("%s\n", line.c_str());
@@ -306,10 +304,10 @@ void print_document()
 
 void render_line()
 {
-    string & s = g_document[g_cursor_line];
+    string & s = g_document.contents[g_document.cursor_line];
     fprintf(g_tty_file, "\r\033[0K");
     fprintf(g_tty_file, "%s", render_colors(s).c_str());
-    fprintf(g_tty_file, "\r\033[%dC", g_cursor_column);
+    fprintf(g_tty_file, "\r\033[%dC", g_document.cursor_column);
     fflush(g_tty_file);
 }
 
@@ -349,11 +347,11 @@ int main()
             case '\r':
             case '\n':
                 put("\r\n");
-                g_cursor_line++;
-                g_cursor_column = 0;
-                if (g_cursor_line > g_max_line) {
-                    g_document.emplace_back();
-                    g_max_line = g_cursor_line;
+                g_document.cursor_line++;
+                g_document.cursor_column = 0;
+                if (g_document.cursor_line > g_document.max_line) {
+                    g_document.contents.emplace_back();
+                    g_document.max_line = g_document.cursor_line;
                     put("\033[0K");
                     put("\r\n");
                     put("\033[1A");
@@ -378,37 +376,37 @@ int main()
                 break;
 
             case INSERT:
-                g_overwrite = !g_overwrite;
+                g_document.overwrite = !g_document.overwrite;
                 break;
 
             case BACKSPACE:
-                if (g_cursor_column >= 1) {
-                    g_cursor_column--;
-                    g_document[g_cursor_line].erase(g_cursor_column, 1);
+                if (g_document.cursor_column >= 1) {
+                    g_document.cursor_column--;
+                    g_document.contents[g_document.cursor_line].erase(g_document.cursor_column, 1);
                     render_line();
                 }
                 break;
 
             case DELETE:
-                if (g_cursor_column < (int)g_document[g_cursor_line].size()) {
-                    g_document[g_cursor_line].erase(g_cursor_column, 1);
+                if (g_document.cursor_column < (int)g_document.contents[g_document.cursor_line].size()) {
+                    g_document.contents[g_document.cursor_line].erase(g_document.cursor_column, 1);
                     render_line();
                 }
                 break;
 
             default: {
                 if (!iscntrl(k.k)) {
-                    string & s = g_document[g_cursor_line];
-                    if (g_cursor_column >= (int)s.size()) {
+                    string & s = g_document.contents[g_document.cursor_line];
+                    if (g_document.cursor_column >= (int)s.size()) {
                         s.push_back(k.k);
                     }
-                    else if (g_overwrite) {
-                        s[g_cursor_column] = k.k;
+                    else if (g_document.overwrite) {
+                        s[g_document.cursor_column] = k.k;
                     }
                     else {
-                        s.insert(g_cursor_column, 1, k.k);
+                        s.insert(g_document.cursor_column, 1, k.k);
                     }
-                    g_cursor_column++;
+                    g_document.cursor_column++;
                     render_line();
                 }
             }
