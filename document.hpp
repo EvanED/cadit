@@ -100,6 +100,34 @@ struct Document
     void insert_newline()
     {
         put("\r\n");
+
+        if(cursor_column < current_line_size()) {          
+            contents.insert(contents.begin() + cursor_line + 1, std::string());
+
+            std::string & current_line = contents[cursor_line];
+            contents[cursor_line + 1] = current_line.substr(cursor_column);
+            current_line.erase(cursor_column);
+
+            put("\033[A");
+            put("\033[0J");
+
+            for (auto line = contents.cbegin() + cursor_line;
+                 line != contents.cend();
+                 ++line)
+            {
+                fprintf(g_tty_file, "%s", render_colors(*line).c_str());
+                fprintf(g_tty_file, "\r\n");
+            }
+
+            fflush(g_tty_file);
+
+            max_line++;
+            cursor_line++;
+            cursor_column = 0;
+
+            return;
+        }
+        
         cursor_line++;
         cursor_column = 0;
         if (cursor_line > max_line) {
