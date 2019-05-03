@@ -242,12 +242,21 @@ void write_status_bar()
     int col = std::stoi(col_str);
 
     winsize size = get_window_size();
+
+    assert(row == size.ws_row - int(g_document.contents.size() - g_document.cursor_line));
+    assert(col == g_document.cursor_column + 1);
+    
     fprintf(g_tty_file, "\033[%d;%dH", size.ws_row, 0);
     fprintf(g_tty_file, "\033[0K");
     fprintf(g_tty_file, "\033[7m");
     fprintf(g_tty_file, "%d:%d", g_document.cursor_line, g_document.cursor_column);
     if (g_document.overwrite)
         fprintf(g_tty_file, " [overwrite]");
+    fprintf(g_tty_file, "  -- row==%d, col==%d,  size==%dx%d, test=%dx%d",
+            row, col, size.ws_row, size.ws_col,
+            size.ws_row - int(g_document.contents.size() - g_document.cursor_line),        
+            g_document.cursor_column + 1
+            );
     fprintf(g_tty_file, "\033[m");
     fprintf(g_tty_file, "\033[%d;%dH", row, col);
     fflush(g_tty_file);
