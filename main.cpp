@@ -90,14 +90,6 @@ Key read_byte()
 Key read()
 {
     Key k = read_byte();
-#if 0
-    switch(k.k) {
-        case ',': return {ARROW_UP};
-        case 'o': return {ARROW_DOWN};
-        case 'e': return {ARROW_RIGHT};
-        case 'a': return {ARROW_LEFT};
-    }
-#endif
     if (k.k != '\x1B')
         return k;
 
@@ -136,11 +128,6 @@ Key read()
 }
 
 ////////////////////////////////////////////
-
-void move_cursor_to_end_of_line()
-{
-    g_document.cursor_end();
-}
 
 void move_cursor(Key k)
 {
@@ -193,16 +180,6 @@ void write_status_bar()
 
 //////////////////////////////////////////
 
-void print_document()
-{
-    g_document.render();
-}
-
-void render_line()
-{
-    g_document.render_current_line();
-}
-
 constexpr int ctrl(char c)
 {
     return c & 0x1F;
@@ -231,15 +208,25 @@ int main()
         write_status_bar();
         Key k = read();
         switch (k.k) {
+            //
+            // "Editor control" keys
+            //
             case ctrl('D'):
             case ctrl('C'):
                 should_exit = true;
                 break;
 
-            case '\r':
-            case '\n':
-                g_document.insert_newline();
+            case INSERT:
+                g_document.overwrite = !g_document.overwrite;
                 break;
+
+            //
+            // Cursor motion keys
+            //
+            case ARROW_UP:    g_document.cursor_up();    break;
+            case ARROW_DOWN:  g_document.cursor_down();  break;
+            case ARROW_LEFT:  g_document.cursor_left();  break;
+            case ARROW_RIGHT: g_document.cursor_right(); break;
 
             case HOME:
             case ctrl('A'):
@@ -251,23 +238,15 @@ int main()
                 g_document.cursor_end();
                 break;
 
-            case ARROW_UP:
-            case ARROW_DOWN:
-            case ARROW_LEFT:
-            case ARROW_RIGHT:
-                move_cursor(k);
-                break;
+            //
+            // Document editing keys
+            //
+            case BACKSPACE: g_document.insert_backspace(); break;
+            case DELETE:    g_document.insert_delete();    break;
 
-            case INSERT:
-                g_document.overwrite = !g_document.overwrite;
-                break;
-
-            case BACKSPACE:
-                g_document.insert_backspace();
-                break;
-
-            case DELETE:
-                g_document.insert_delete();
+            case '\r':
+            case '\n':
+                g_document.insert_newline();
                 break;
 
             default: {
@@ -279,6 +258,6 @@ int main()
     }
 
     restore_termios_mode();
-    print_document();
+    g_document.render();
     return 0;
 }
