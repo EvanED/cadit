@@ -187,64 +187,11 @@ winsize get_window_size() {
 
 void write_status_bar()
 {
-    put("\033[6n");
-
-    std::string row_str, col_str;
-
-    Key k;
- expect_esc:
-    row_str.clear();
-    col_str.clear();
-    for (k = read_byte(AllowPending::No); k.k != '\033'; k = read_byte(AllowPending::No))
-        g_pending_bytes.push(k.k);
-
-    k = read_byte(AllowPending::No);
-    if (k.k != '[') {
-        g_pending_bytes.push('\033');
-        g_pending_bytes.push(k.k);
-        goto expect_esc;
-    }
-
-    for (k = read_byte(AllowPending::No); std::isdigit(k.k); k = read_byte(AllowPending::No)) {
-        assert(row_str.size() < 10);
-        row_str.push_back(k.k);
-    }
-
-    if (k.k != ';') {
-        g_pending_bytes.push('\033');
-        g_pending_bytes.push('[');
-        for (char c : row_str)
-            g_pending_bytes.push(c);
-        g_pending_bytes.push(k.k);
-        goto expect_esc;
-    }
-    
-    for (k = read_byte(AllowPending::No); std::isdigit(k.k); k = read_byte(AllowPending::No)) {
-        assert(col_str.size() < 10);
-        col_str.push_back(k.k);
-    }
-    
-    if (k.k != 'R') {
-        g_pending_bytes.push('\033');
-        g_pending_bytes.push('[');
-        for (char c : row_str)
-            g_pending_bytes.push(c);
-        g_pending_bytes.push(';');
-        for (char c : col_str)
-            g_pending_bytes.push(c);
-        g_pending_bytes.push(k.k);
-        goto expect_esc;
-    }
-
-    //////////////////
-
-    int row = std::stoi(row_str);
-    int col = std::stoi(col_str);
-
     winsize size = get_window_size();
 
-    assert(row == size.ws_row - int(g_document.contents.size() - g_document.cursor_line));
-    assert(col == g_document.cursor_column + 1);
+    // TODO: asserting cast
+    int row = size.ws_row - int(g_document.contents.size() - g_document.cursor_line);
+    int col = g_document.cursor_column + 1;
     
     fprintf(g_tty_file, "\033[%d;%dH", size.ws_row, 0);
     fprintf(g_tty_file, "\033[0K");
@@ -252,11 +199,6 @@ void write_status_bar()
     fprintf(g_tty_file, "%d:%d", g_document.cursor_line, g_document.cursor_column);
     if (g_document.overwrite)
         fprintf(g_tty_file, " [overwrite]");
-    fprintf(g_tty_file, "  -- row==%d, col==%d,  size==%dx%d, test=%dx%d",
-            row, col, size.ws_row, size.ws_col,
-            size.ws_row - int(g_document.contents.size() - g_document.cursor_line),        
-            g_document.cursor_column + 1
-            );
     fprintf(g_tty_file, "\033[m");
     fprintf(g_tty_file, "\033[%d;%dH", row, col);
     fflush(g_tty_file);
