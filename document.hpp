@@ -58,14 +58,24 @@ struct Document
             put("\033[1C");
             cursor_column++;
         }
+        else if (cursor_line < (int)contents.size() - 1) {
+            cursor_line++;
+            cursor_column = 0;
+            put("\033[A\r");
+        }
     }
 
     void cursor_left()
     {
-        // TODO: why >0? Are we 0-based?
         if (cursor_column > 0) {
             put("\033[1D");
             cursor_column--;
+        }
+        else if (cursor_line > 0) {
+            cursor_line--;
+            cursor_column = current_line_size();
+            fprintf(g_tty_file, "\033[A\033[%dC", cursor_column);
+            fflush(g_tty_file);
         }
     }
 
