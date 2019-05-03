@@ -154,55 +154,25 @@ Key read()
 
 ////////////////////////////////////////////
 
-void put(char c)
-{
-    write(g_tty_fd, &c, 1);
-}
-
-template<size_t size>
-void put(char const (&str)[size])
-{
-    if (write(g_tty_fd, str, size - 1) != size - 1)
-        perror("write:");
-}
-
 void move_cursor_to_end_of_line()
 {
-    fprintf(g_tty_file, "\r\033[%dC", (int)g_document.contents[g_document.cursor_line].size());
-    fflush(g_tty_file);
-    g_document.cursor_column = g_document.contents[g_document.cursor_line].size();
+    g_document.cursor_end();
 }
 
 void move_cursor(Key k)
 {
     switch (k.k) {
         case ARROW_UP:
-            if (g_document.cursor_line >= 1) {
-                put("\033[1A");
-                g_document.cursor_line--;
-                if (g_document.cursor_column > (int)g_document.contents[g_document.cursor_line].size())
-                    move_cursor_to_end_of_line();
-            }
+            g_document.cursor_up();
             break;
         case ARROW_DOWN:
-            if (g_document.cursor_line < g_document.max_line) {
-                put("\033[1B");
-                g_document.cursor_line++;
-                if (g_document.cursor_column > (int)g_document.contents[g_document.cursor_line].size())
-                    move_cursor_to_end_of_line();
-            }
+            g_document.cursor_down();
             break;
         case ARROW_RIGHT:
-            if (g_document.cursor_column < (int)g_document.contents[g_document.cursor_line].size()) {
-                put("\033[1C");
-                g_document.cursor_column++;
-            }
+            g_document.cursor_right();
             break;
         case ARROW_LEFT:
-            if (g_document.cursor_column > 0) {
-                put("\033[1D");
-                g_document.cursor_column--;
-            }
+            g_document.cursor_left();
             break;
     };
 }
