@@ -227,7 +227,7 @@ void event_loop()
 
             case HOME:
             case ctrl('A'):
-                put("\r");
+                g_document.cursor_home();
                 break;
 
             case END:

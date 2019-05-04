@@ -36,6 +36,12 @@ struct Document
         cursor_column = current_line_size();
     }
 
+    void cursor_home()
+    {
+        put("\r");
+        cursor_column = 0;
+    }
+
     void cursor_up()
     {
         if (cursor_line >= 1) {
