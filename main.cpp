@@ -184,6 +184,25 @@ void write_status_bar()
     fflush(g_tty_file);
 }
 
+
+void cycle_token_colorer()
+{
+    g_token_colorer = g_token_colorer->next();
+
+    int row = g_document.cursor_line;
+    int col = g_document.cursor_column;
+
+    for (int i=0; i<=row; ++i)
+        g_document.cursor_up();
+
+    g_document.render(Document::Stream::TtyOnly);
+
+    for (int i=0; i<=row; ++i)
+        g_document.cursor_down();
+
+    (void)col;
+}
+
 //////////////////////////////////////////
 
 void handle_sigwinch(int signal [[maybe_unused]])
@@ -214,6 +233,10 @@ void event_loop()
             case ctrl('D'):
             case ctrl('C'):
                 should_exit = true;
+                break;
+
+            case ctrl('T'):
+                cycle_token_colorer();
                 break;
 
             case INSERT:
