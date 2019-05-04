@@ -281,7 +281,7 @@ void event_loop()
     }
 }
 
-int main()
+int main(int argc [[maybe_unused]], char** argv)
 {
     g_tty_fd = open("/dev/tty", O_RDWR | O_NOCTTY);
     if (g_tty_fd == -1) {
@@ -303,6 +303,9 @@ int main()
         exit(1);
     }
     g_num_cols = get_window_size().ws_col;
+
+    if (argv[1] != nullptr)
+        g_document.load(argv[1]);
 
     raw();
 

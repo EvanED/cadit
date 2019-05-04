@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <fstream>
 
 #include "output-utilities.hpp"
 #include "tokenize.hpp"
@@ -16,6 +17,19 @@ struct Document
     bool overwrite;
     std::vector<std::string> contents = {""};
     int dead_lines = 0;
+
+    void load(const char* filename)
+    {
+        std::ifstream file(filename);
+
+        contents.clear();
+
+        std::string line;
+        while (std::getline(file, line))
+            contents.emplace_back(std::move(line));
+
+        render(Stream::TtyOnly);
+    }
 
     void constrain_cursor()
     {
