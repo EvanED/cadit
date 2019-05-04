@@ -131,7 +131,9 @@ vector<string> tokenize(std::string str)
     return ret;
 }
 
-string render_colors(std::string const & str)
+namespace token_colorers
+{
+string Cpp::render_colors(std::string const & str) const
 {
     auto tokens = tokenize(str);
     
@@ -145,6 +147,7 @@ string render_colors(std::string const & str)
         ret.append(token);
     
     return ret;
+}
 }
 
 #if 0

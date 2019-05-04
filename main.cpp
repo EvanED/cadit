@@ -36,6 +36,9 @@ using std::vector;
 
 Document g_document;
 
+std::unique_ptr<TokenColorer>
+    g_token_colorer = std::make_unique<token_colorers::Cpp>();
+
 int g_tty_fd;
 FILE* g_tty_file;
 

@@ -2,11 +2,13 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "output-utilities.hpp"
 #include "tokenize.hpp"
 
 extern int g_num_cols;
+extern std::unique_ptr<TokenColorer> g_token_colorer;
 
 struct Document
 {
@@ -109,7 +111,7 @@ struct Document
             if ((int)line.size() > g_num_cols) {
                 render_line = line.substr(0, g_num_cols-1);
             }
-            fprintf(g_tty_file, "%s\r\n", render_colors(render_line).c_str());
+            fprintf(g_tty_file, "%s\r\n", g_token_colorer->render_colors(render_line).c_str());
             if (!isatty(STDOUT_FILENO) and s == Stream::TtyAndStdout)
                 printf("%s\n", line.c_str());
         }
@@ -128,7 +130,7 @@ struct Document
             render_line = s.substr(0, g_num_cols-1);
         }
         fprintf(g_tty_file, "\r\033[0K"); // move to start and clear line
-        fprintf(g_tty_file, "%s", render_colors(render_line).c_str());
+        fprintf(g_tty_file, "%s", g_token_colorer->render_colors(render_line).c_str());
         fprintf(g_tty_file, "\r\033[%dC", cursor_column);
         fflush(g_tty_file);
     }
@@ -158,7 +160,7 @@ struct Document
                  line != contents.cend();
                  ++line)
             {
-                fprintf(g_tty_file, "%s", render_colors(*line).c_str());
+                fprintf(g_tty_file, "%s", g_token_colorer->render_colors(*line).c_str());
                 fprintf(g_tty_file, "\r\n");
             }
 
