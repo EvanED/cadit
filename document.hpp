@@ -11,7 +11,6 @@ extern int g_num_cols;
 struct Document
 {
     int cursor_line, cursor_column;
-    int max_line;
     bool overwrite;
     std::vector<std::string> contents = {""};
 
@@ -53,7 +52,7 @@ struct Document
 
     void cursor_down()
     {
-        if (cursor_line < max_line) {
+        if (cursor_line < (int)contents.size() - 1) {
             put("\033[1B");
             cursor_line++;
             constrain_cursor();
@@ -158,7 +157,6 @@ struct Document
 
             fflush(g_tty_file);
 
-            max_line++;
             cursor_line++;
             cursor_column = 0;
 
@@ -167,9 +165,8 @@ struct Document
         
         cursor_line++;
         cursor_column = 0;
-        if (cursor_line > max_line) {
+        if (cursor_line > (int)contents.size() - 1) {
             contents.emplace_back();
-            max_line = cursor_line;
             put("\033[0K");
             put("\r\n");
             put("\033[1A");
