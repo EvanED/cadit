@@ -93,9 +93,6 @@ struct Document
     };
 
 
-    // LEAVES CURSOR AT END OF DISPLAY
-    //
-    // ONLY USE AT PROGRAM EXIT
     void render(Stream s) const
     {
         if (cursor_line > 0)
