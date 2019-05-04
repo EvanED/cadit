@@ -13,6 +13,7 @@ struct Document
     int cursor_line, cursor_column;
     bool overwrite;
     std::vector<std::string> contents = {""};
+    int dead_lines = 0;
 
     void constrain_cursor()
     {
@@ -52,7 +53,7 @@ struct Document
 
     void cursor_down()
     {
-        if (cursor_line < (int)contents.size() - 1) {
+        if (cursor_line < (int)contents.size() - dead_lines - 1) {
             put("\033[1B");
             cursor_line++;
             constrain_cursor();
@@ -102,7 +103,11 @@ struct Document
         else
             fprintf(g_tty_file, "\r\033[J");
 
-        for (auto const & line : contents) {
+        for (int line_no = 0;
+             line_no < (int)contents.size() - dead_lines;
+             ++line_no)
+        {
+            auto const & line = contents[line_no];
             std::string render_line = line;
             if ((int)line.size() > g_num_cols) {
                 render_line = line.substr(0, g_num_cols-1);
@@ -136,6 +141,11 @@ struct Document
     void insert_newline()
     {
         put("\r\n");
+
+        if (dead_lines >= 1) {
+            contents.pop_back();
+            dead_lines--;
+        }
 
         if(cursor_column < current_line_size()) {          
             contents.insert(contents.begin() + cursor_line + 1, std::string());
@@ -179,6 +189,18 @@ struct Document
             cursor_column--;
             contents[cursor_line].erase(cursor_column, 1);
             render_current_line();
+        }
+        else if (cursor_line >= 1) {
+            cursor_column = contents[cursor_line - 1].size();
+            contents[cursor_line - 1] += contents[cursor_line];
+            contents.erase(contents.begin() + cursor_line);
+            contents.emplace_back();
+
+            cursor_line--;
+            dead_lines++;
+
+            put("\033[A");
+            render(Stream::TtyOnly);
         }
     }
 
