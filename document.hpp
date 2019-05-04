@@ -210,6 +210,15 @@ struct Document
             contents[cursor_line].erase(cursor_column, 1);
             render_current_line();
         }
+        else if (cursor_line < (int)contents.size() - 1) {
+            contents[cursor_line] += contents[cursor_line + 1];
+            contents.erase(contents.begin() + cursor_line + 1);
+            contents.emplace_back();
+
+            dead_lines++;
+
+            render(Stream::TtyOnly);
+        }
     }
 
     void insert_key(Key k)
