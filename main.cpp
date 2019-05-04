@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "tokenize.hpp"
 #include "document.hpp"
@@ -37,6 +38,8 @@ Document g_document;
 
 int g_tty_fd;
 FILE* g_tty_file;
+
+int g_num_cols;
 
 termios g_orig_termios;
 
@@ -180,6 +183,13 @@ void write_status_bar()
 
 //////////////////////////////////////////
 
+void handle_sigwinch(int signal [[maybe_unused]])
+{
+    g_num_cols = get_window_size().ws_col;
+    g_document.render(Document::Stream::TtyOnly);
+    write_status_bar();
+}
+
 constexpr int ctrl(char c)
 {
     return c & 0x1F;
@@ -258,11 +268,21 @@ int main()
         exit(1);
     }
 
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = handle_sigwinch;
+    if (sigaction(SIGWINCH, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(1);
+    }
+    g_num_cols = get_window_size().ws_col;
+
     raw();
 
     event_loop();
 
     restore_termios_mode();
-    g_document.render();
+    g_document.render(Document::Stream::TtyAndStdout);
     return 0;
 }

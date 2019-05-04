@@ -6,6 +6,8 @@
 #include "output-utilities.hpp"
 #include "tokenize.hpp"
 
+extern int g_num_cols;
+
 struct Document
 {
     int cursor_line, cursor_column;
@@ -79,28 +81,47 @@ struct Document
         }
     }
 
+    enum class Stream {
+        TtyOnly,
+        TtyAndStdout
+    };
+
+
     // LEAVES CURSOR AT END OF DISPLAY
     //
     // ONLY USE AT PROGRAM EXIT
-    void render() const
+    void render(Stream s) const
     {
         if (cursor_line > 0)
-            fprintf(g_tty_file, "\r\033[%dA", cursor_line);
+            fprintf(g_tty_file, "\r\033[%dA\033[J", cursor_line);
         else
-            fprintf(g_tty_file, "\r");
+            fprintf(g_tty_file, "\r\033[J");
 
         for (auto const & line : contents) {
-            fprintf(g_tty_file, "%s\n", render_colors(line).c_str());
-            if (!isatty(STDOUT_FILENO))
+            std::string render_line = line;
+            if ((int)line.size() > g_num_cols) {
+                render_line = line.substr(0, g_num_cols-1);
+            }
+            fprintf(g_tty_file, "%s\r\n", render_colors(render_line).c_str());
+            if (!isatty(STDOUT_FILENO) and s == Stream::TtyAndStdout)
                 printf("%s\n", line.c_str());
         }
+
+        if (s != Stream::TtyAndStdout) {
+            fprintf(g_tty_file, "\r\033[%dA", (int)contents.size() - cursor_line - 1);
+        }
+        fflush(g_tty_file);
     }
 
     void render_current_line() const
     {
         const std::string & s = contents[cursor_line];
+        std::string render_line = s;
+        if ((int)s.size() > g_num_cols) {
+            render_line = s.substr(0, g_num_cols-1);
+        }
         fprintf(g_tty_file, "\r\033[0K"); // move to start and clear line
-        fprintf(g_tty_file, "%s", render_colors(s).c_str());
+        fprintf(g_tty_file, "%s", render_colors(render_line).c_str());
         fprintf(g_tty_file, "\r\033[%dC", cursor_column);
         fflush(g_tty_file);
     }
