@@ -138,7 +138,12 @@ struct Document
 
     void render_current_line() const
     {
-        const std::string & s = contents[cursor_line];
+        render_line(cursor_line);
+    }
+
+    void render_line(int line) const
+    {
+        const std::string & s = contents[line];
         std::string render_line = s;
         if ((int)s.size() > g_num_cols) {
             render_line = s.substr(0, g_num_cols-1);
