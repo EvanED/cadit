@@ -13,9 +13,24 @@ extern std::unique_ptr<TokenColorer> g_token_colorer;
 
 struct Document
 {
+    struct Line {
+        std::string s = "";
+        bool hard_break = true;
+
+        Line (std::string && _s)
+            : s(std::move(_s))
+        {}
+
+        Line() {}
+
+        int size() const {
+            return (int)s.size();
+        }
+    };
+
     int cursor_line, cursor_column;
     bool overwrite;
-    std::vector<std::string> contents = {""};
+    std::vector<Line> contents = {Line()};
     int dead_lines = 0;
 
     void load(const char* filename)
@@ -120,7 +135,7 @@ struct Document
              line_no < (int)contents.size() - dead_lines;
              ++line_no)
         {
-            auto const & line = contents[line_no];
+            auto const & line = contents[line_no].s;
             std::string render_line = line;
             if ((int)line.size() > g_num_cols) {
                 render_line = line.substr(0, g_num_cols-1);
@@ -143,7 +158,7 @@ struct Document
 
     void render_line(int line) const
     {
-        const std::string & s = contents[line];
+        const std::string & s = contents[line].s;
         std::string render_line = s;
         if ((int)s.size() > g_num_cols) {
             render_line = s.substr(0, g_num_cols-1);
@@ -168,8 +183,8 @@ struct Document
         if(cursor_column < current_line_size()) {          
             contents.insert(contents.begin() + cursor_line + 1, std::string());
 
-            std::string & current_line = contents[cursor_line];
-            contents[cursor_line + 1] = current_line.substr(cursor_column);
+            std::string & current_line = contents[cursor_line].s;
+            contents[cursor_line + 1].s = current_line.substr(cursor_column);
             current_line.erase(cursor_column);
 
             put("\033[A");
@@ -179,7 +194,7 @@ struct Document
                  line != contents.cend();
                  ++line)
             {
-                fprintf(g_tty_file, "%s", g_token_colorer->render_colors(*line).c_str());
+                fprintf(g_tty_file, "%s", g_token_colorer->render_colors(line->s).c_str());
                 fprintf(g_tty_file, "\r\n");
             }
 
@@ -205,12 +220,12 @@ struct Document
     {
         if (cursor_column >= 1) {
             cursor_column--;
-            contents[cursor_line].erase(cursor_column, 1);
+            contents[cursor_line].s.erase(cursor_column, 1);
             render_current_line();
         }
         else if (cursor_line >= 1) {
             cursor_column = contents[cursor_line - 1].size();
-            contents[cursor_line - 1] += contents[cursor_line];
+            contents[cursor_line - 1].s += contents[cursor_line].s;
             contents.erase(contents.begin() + cursor_line);
             contents.emplace_back();
 
@@ -225,11 +240,11 @@ struct Document
     void insert_delete()
     {
         if (cursor_column < (int)contents[cursor_line].size()) {
-            contents[cursor_line].erase(cursor_column, 1);
+            contents[cursor_line].s.erase(cursor_column, 1);
             render_current_line();
         }
         else if (cursor_line < (int)contents.size() - 1) {
-            contents[cursor_line] += contents[cursor_line + 1];
+            contents[cursor_line].s += contents[cursor_line + 1].s;
             contents.erase(contents.begin() + cursor_line + 1);
             contents.emplace_back();
 
@@ -241,7 +256,7 @@ struct Document
 
     void insert_key(Key k)
     {
-        std::string & s = contents[cursor_line];
+        std::string & s = contents[cursor_line].s;
         if (cursor_column >= (int)s.size()) {
             s.push_back(k.k);
         }
@@ -254,4 +269,5 @@ struct Document
         cursor_column++;
         render_current_line();
     }
+
 };
